@@ -7,11 +7,15 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.navigation.NavController
 import com.example.facevy.ui.theme.UIPermisosHelper
+import com.example.facevy.camara.cameraManager
+import com.example.facevy.ui.theme.RutasPantallas
 
 
 //esto nos permite solicitar los permisos de la camara
@@ -40,7 +44,7 @@ object PermisosHelper {
 
     //aqui esta la pantalla para pedirle permiso al usuario de acceder a la camara
     @Composable
-    fun PantallaPermisoCamara() {
+    fun PantallaPermisoCamara(navController: NavController) {
         val actividad = LocalActivity.current
         val tienePermiso = remember {
             mutableStateOf(actividad?.let { PermisosHelper.tienePermisoCamara(it) } ?: false)
@@ -48,9 +52,19 @@ object PermisosHelper {
 
         val launcher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission()
-        ) { concedido ->
-            tienePermiso.value = concedido
+        ) {
+            concedido -> tienePermiso.value = concedido
         }
+
+
+        //vamos a la pantalla de la camara
+        // Si ya tiene permiso, ir directo a la pantalla de camara
+        LaunchedEffect(tienePermiso.value) {
+            if (tienePermiso.value) {
+                navController.navigate(RutasPantallas.Camara)
+            }
+        }
+
 
         //llamamos la funcion que muestra el texto para pedir los permisos, solo el texto
         UIPermisosHelper.textPedirPermisoCamara(

@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 Este archivo contiene la interfaz grafica relacionada con la solicitud de permisos
  */
 
+
+// boton para pedir permiso al usuario de usar la camara del dispositivo
 object UIPermisosHelper {
     @Composable
     fun textPedirPermisoCamara(
@@ -28,6 +30,7 @@ object UIPermisosHelper {
         ) {
             if (tienePermiso) {
                 Text(
+
                     text = "Permiso concedido. Cargando cámara...",
                     modifier = Modifier.padding(16.dp)
                 )

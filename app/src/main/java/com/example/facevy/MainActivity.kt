@@ -24,11 +24,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.LocalActivity
 
-
-
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.facevy.camara.cameraManager
+import com.example.facevy.camara.cameraManager.PantallaCamara
+import com.example.facevy.ui.theme.RutasPantallas
 
 /*
 en este archivo se llamaran a todas las funciones que permitiran que funcione la app
@@ -40,12 +44,25 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceVYTheme {
+                val navController = rememberNavController()
 
-                //pantalla para medir permiso al usuario de usar la camara
-                PermisosHelper.PantallaPermisoCamara()
+                //con esto navegamos por las distintas pantallas o escenas
+                NavHost(
+                    navController = navController,
 
+                    //
+                    startDestination = RutasPantallas.Permiso
+                ) {
+                    composable(RutasPantallas.Permiso) {
+                        PermisosHelper.PantallaPermisoCamara(navController)
+                    }
+                    composable(RutasPantallas.Camara) {
+                        cameraManager.PantallaCamara()
+                    }
+                }
             }
         }
+
     }
 }
 
@@ -56,8 +73,4 @@ fun GreetingPreview() {
 
     }
 }
-
-
-
-
 
