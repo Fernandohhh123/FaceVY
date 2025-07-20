@@ -27,6 +27,8 @@ object PermisosHelper {
     const val PERMISO_CAMARA = android.Manifest.permission.CAMERA
     const val CODIGO_SOLICITUD_CAMARA = 100
 
+
+
     //funcion para verificar que el permiso fue otorgado
     fun tienePermisoCamara(activity: Activity): Boolean {
         //solicita el permiso y lo compara con PERMISSION_GRANTED y retorna true si la comparacion es verdadera
@@ -40,6 +42,10 @@ object PermisosHelper {
         // mostramos el dialogo para permitir o denegar el acceso a la camara
         ActivityCompat.requestPermissions(activity,arrayOf(PERMISO_CAMARA),CODIGO_SOLICITUD_CAMARA)
     }
+
+
+
+
 
 
     //aqui esta la pantalla para pedirle permiso al usuario de acceder a la camara
@@ -56,7 +62,6 @@ object PermisosHelper {
             concedido -> tienePermiso.value = concedido
         }
 
-
         //vamos a la pantalla de la camara
         // Si ya tiene permiso, ir directo a la pantalla de camara
         LaunchedEffect(tienePermiso.value) {
@@ -64,7 +69,6 @@ object PermisosHelper {
                 navController.navigate(RutasPantallas.Camara)
             }
         }
-
 
         //llamamos la funcion que muestra el texto para pedir los permisos, solo el texto
         UIPermisosHelper.textPedirPermisoCamara(

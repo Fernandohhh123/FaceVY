@@ -33,6 +33,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.facevy.camara.cameraManager
 import com.example.facevy.camara.cameraManager.PantallaCamara
 import com.example.facevy.ui.theme.RutasPantallas
+import com.example.facevy.ui.theme.PantallaSettings
 
 /*
 en este archivo se llamaran a todas las funciones que permitiran que funcione la app
@@ -53,18 +54,30 @@ class MainActivity : ComponentActivity() {
                     //
                     startDestination = RutasPantallas.Permiso
                 ) {
+
                     composable(RutasPantallas.Permiso) {
                         PermisosHelper.PantallaPermisoCamara(navController)
                     }
+
                     composable(RutasPantallas.Camara) {
-                        cameraManager.PantallaCamara()
+                        cameraManager.PantallaCamara(navController)
                     }
+
+                    composable(RutasPantallas.Settings) {
+                        PantallaSettings(navController = navController, context = LocalContext.current)
+                    }
+
+
+
                 }
             }
         }
 
     }
 }
+
+
+
 
 @Preview(showBackground = true)
 @Composable
