@@ -56,6 +56,16 @@ android {
         jvmTarget = "17"
     }
 
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
+    }
+
+
+
 
 } // android
 
@@ -83,6 +93,17 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.4.2")
     implementation("androidx.camera:camera-lifecycle:1.4.2")
     implementation("androidx.camera:camera-view:1.4.2") // Necesaria para PreviewView
+
+    // Para CameraX + Compose integración opcional (solo si usarás Compose directamente para la vista)
+    implementation("androidx.camera:camera-view:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+
+    // Material Icons si usas íconos por nombre
+    implementation("androidx.compose.material:material-icons-extended")
+
+    // ML Kit Face Detection
+    implementation("com.google.mlkit:face-detection:17.1.5")
+
 
 
 
