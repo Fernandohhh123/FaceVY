@@ -69,6 +69,8 @@ android {
 
 } // android
 
+
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -102,7 +104,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     // ML Kit Face Detection
-    implementation("com.google.mlkit:face-detection:17.1.5")
+    implementation("com.google.mlkit:face-detection:16.1.7")
+
 
 
 
