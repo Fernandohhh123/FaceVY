@@ -37,4 +37,3 @@ fun PantallaSettings(navController: NavController, context: Context) {
         }
     }
 }
-

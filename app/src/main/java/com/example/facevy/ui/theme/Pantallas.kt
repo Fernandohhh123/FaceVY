@@ -11,7 +11,11 @@ pantalas planeadas:
 */
 
 object RutasPantallas {
-    const val Permiso = "pantalla_permiso_uso_camara"
-    const val Camara = "pantalla_camara"
+    const val PantallaPermisos = "pantalla_permisos"  // Nombre corregido y consistente
+    const val PantallaCamara = "pantalla_camara"
     const val Settings = "settings"
+
+    const val splash = "splash"
+    const val PantallaInicio = "PantallaInicio"
+
 }
