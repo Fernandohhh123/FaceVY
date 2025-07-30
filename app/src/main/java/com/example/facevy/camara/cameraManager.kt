@@ -1,8 +1,21 @@
 package com.example.facevy.camara
 
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Matrix
+import android.graphics.YuvImage
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import android.app.Activity
 import android.content.Context
 import android.graphics.Rect
+import android.media.Image
 import android.util.Size
 import androidx.activity.compose.BackHandler
 import androidx.camera.core.*
@@ -30,6 +43,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.*
+
+
+private var guardandoImagen = false
 
 object cameraManager {
 
@@ -200,7 +216,6 @@ object cameraManager {
     ) {
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
-            // Ajustar tamaño basado en rotación para correcto escalado
             val rotation = imageProxy.imageInfo.rotationDegrees
             if (rotation == 90 || rotation == 270) {
                 imageSize.value = Size(imageProxy.height, imageProxy.width)
@@ -209,11 +224,25 @@ object cameraManager {
             }
 
             val image = InputImage.fromMediaImage(mediaImage, rotation)
+
             detector.process(image)
                 .addOnSuccessListener { faces ->
                     listaCaras.clear()
-                    for (face in faces) {
-                        listaCaras.add(face.boundingBox)
+                    if (faces.isNotEmpty()) {
+                        for (face in faces) {
+                            listaCaras.add(face.boundingBox)
+                        }
+
+                        // Captura automática solo la primera vez que detecta una cara
+                        if (!guardandoImagen) {
+                            guardandoImagen = true
+                            guardarImagenDeRostro(mediaImage, rotation, faces[0].boundingBox) {
+                                // Resetear para permitir otra captura después de un tiempo
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    guardandoImagen = false
+                                }, 5000)
+                            }
+                        }
                     }
                     imageProxy.close()
                 }
@@ -223,5 +252,65 @@ object cameraManager {
         } else {
             imageProxy.close()
         }
+    }
+
+
+
+    private fun guardarImagenDeRostro(
+        mediaImage: Image,
+        rotation: Int,
+        boundingBox: Rect,
+        onGuardado: () -> Unit
+    ) {
+        val bitmap = BitmapUtils.mediaImageToBitmap(mediaImage, rotation) ?: return
+        val rostroBitmap = Bitmap.createBitmap(
+            bitmap,
+            boundingBox.left.coerceAtLeast(0),
+            boundingBox.top.coerceAtLeast(0),
+            boundingBox.width().coerceAtMost(bitmap.width - boundingBox.left),
+            boundingBox.height().coerceAtMost(bitmap.height - boundingBox.top)
+        )
+
+        val filename = "rostro_${System.currentTimeMillis()}.jpg"
+        val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), filename)
+
+        try {
+            val out = FileOutputStream(file)
+            rostroBitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+            out.flush()
+            out.close()
+            onGuardado()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+
+}
+
+object BitmapUtils {
+    fun mediaImageToBitmap(image: Image, rotation: Int): Bitmap? {
+        val yBuffer = image.planes[0].buffer
+        val uBuffer = image.planes[1].buffer
+        val vBuffer = image.planes[2].buffer
+
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
+
+        val nv21 = ByteArray(ySize + uSize + vSize)
+        yBuffer.get(nv21, 0, ySize)
+        vBuffer.get(nv21, ySize, vSize)
+        uBuffer.get(nv21, ySize + vSize, uSize)
+
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 100, out)
+        val yuv = out.toByteArray()
+        var bitmap = BitmapFactory.decodeByteArray(yuv, 0, yuv.size)
+
+        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+        bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        return bitmap
     }
 }
