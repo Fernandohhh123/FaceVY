@@ -1,21 +1,13 @@
 package com.example.facevy.camara
 
-
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.app.Activity
+import android.content.Context
+import android.graphics.*
 import android.graphics.ImageFormat
-import android.graphics.Matrix
-import android.graphics.YuvImage
+import android.media.Image
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import android.app.Activity
-import android.content.Context
-import android.graphics.Rect
-import android.media.Image
 import android.util.Size
 import androidx.activity.compose.BackHandler
 import androidx.camera.core.*
@@ -34,18 +26,28 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size as ComposeSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.face.*
-
+import com.google.mlkit.vision.face.Face
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 
 private var guardandoImagen = false
+
+data class RostroDetectado(
+    val boundingBox: Rect,
+    val emotion: String
+)
 
 object cameraManager {
 
@@ -84,7 +86,6 @@ object cameraManager {
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-
             CameraPreviewConDeteccion(
                 context = contexto,
                 lifecycleOwner = cicloDeVida,
@@ -130,8 +131,8 @@ object cameraManager {
         cameraSelector: CameraSelector
     ) {
         val previewView = remember { PreviewView(context) }
-        val listaCaras = remember { mutableStateListOf<Rect>() }
-        val imageSize = remember { mutableStateOf(Size(0, 0)) }
+        val listaCaras = remember { mutableStateListOf<RostroDetectado>() }
+        val imageSize = remember { mutableStateOf(android.util.Size(0, 0)) }
 
         LaunchedEffect(cameraSelector) {
             val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -146,6 +147,7 @@ object cameraManager {
 
             val options = FaceDetectorOptions.Builder()
                 .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
                 .enableTracking()
                 .build()
 
@@ -186,7 +188,8 @@ object cameraManager {
                     val scaleX = size.width / imgSize.width.toFloat()
                     val scaleY = size.height / imgSize.height.toFloat()
 
-                    for (faceRect in listaCaras) {
+                    for (rostro in listaCaras) {
+                        val faceRect = rostro.boundingBox
                         val left = faceRect.left * scaleX
                         val top = faceRect.top * scaleY
                         val right = faceRect.right * scaleX
@@ -195,32 +198,67 @@ object cameraManager {
                         val drawLeft = if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
                             size.width - left - (right - left) else left
 
+                        // Dibuja el cuadro amarillo
                         drawRect(
                             color = Color.Yellow,
                             topLeft = Offset(drawLeft, top),
                             size = ComposeSize(right - left, bottom - top),
                             style = Stroke(width = 5f)
                         )
+
+                        // Dibuja fondo para el texto
+                        drawRect(
+                            color = Color.Black.copy(alpha = 0.5f),
+                            topLeft = Offset(
+                                if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
+                                    size.width - left - (right - left)/2 - 50f else left + (right - left)/2 - 50f,
+                                top - 70f
+                            ),
+                            size = ComposeSize(100f, 60f)
+                        )
+
+                        // Dibuja la emoción
+                        drawContext.canvas.nativeCanvas.apply {
+                            drawText(
+                                rostro.emotion,
+                                if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
+                                    size.width - left - (right - left)/2 else left + (right - left)/2,
+                                top - 30f,
+                                android.graphics.Paint().apply {
+                                    color = android.graphics.Color.YELLOW
+                                    textSize = 40f
+                                    textAlign = android.graphics.Paint.Align.CENTER
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 
+    private fun MatchGroup?.bindToLifecycle(
+        lifecycleOwner: LifecycleOwner,
+        cameraSelector: CameraSelector,
+        preview: Preview,
+        imageAnalyzer: ImageAnalysis
+    ) {
+    }
+
     @androidx.camera.core.ExperimentalGetImage
     private fun procesarImagen(
-        detector: FaceDetector,
+        detector: com.google.mlkit.vision.face.FaceDetector,
         imageProxy: ImageProxy,
-        listaCaras: MutableList<Rect>,
-        imageSize: MutableState<Size>
+        listaCaras: MutableList<RostroDetectado>,
+        imageSize: MutableState<android.util.Size>
     ) {
         val mediaImage = imageProxy.image
         if (mediaImage != null) {
             val rotation = imageProxy.imageInfo.rotationDegrees
             if (rotation == 90 || rotation == 270) {
-                imageSize.value = Size(imageProxy.height, imageProxy.width)
+                imageSize.value = android.util.Size(imageProxy.height, imageProxy.width)
             } else {
-                imageSize.value = Size(imageProxy.width, imageProxy.height)
+                imageSize.value = android.util.Size(imageProxy.width, imageProxy.height)
             }
 
             val image = InputImage.fromMediaImage(mediaImage, rotation)
@@ -230,17 +268,16 @@ object cameraManager {
                     listaCaras.clear()
                     if (faces.isNotEmpty()) {
                         for (face in faces) {
-                            listaCaras.add(face.boundingBox)
-                        }
+                            val emotion = detectEmotion(face)
+                            listaCaras.add(RostroDetectado(face.boundingBox, emotion))
 
-                        // Captura automática solo la primera vez que detecta una cara
-                        if (!guardandoImagen) {
-                            guardandoImagen = true
-                            guardarImagenDeRostro(mediaImage, rotation, faces[0].boundingBox) {
-                                // Resetear para permitir otra captura después de un tiempo
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    guardandoImagen = false
-                                }, 5000)
+                            if (!guardandoImagen) {
+                                guardandoImagen = true
+                                guardarImagenDeRostro(mediaImage, rotation, face.boundingBox) {
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        guardandoImagen = false
+                                    }, 5000)
+                                }
                             }
                         }
                     }
@@ -254,7 +291,17 @@ object cameraManager {
         }
     }
 
-
+    private fun detectEmotion(face: Face): String {
+        return when {
+            face.smilingProbability?.let { it > 0.7f } == true -> "😊 Feliz"
+            face.leftEyeOpenProbability?.let { it < 0.3f } == true &&
+                    face.rightEyeOpenProbability?.let { it < 0.3f } == true -> "😴 Dormido"
+            face.leftEyeOpenProbability?.let { it > 0.8f } == true &&
+                    face.rightEyeOpenProbability?.let { it > 0.8f } == true -> "😯 Sorprendido"
+            face.smilingProbability?.let { it < 0.3f } == true -> "😐 Neutral"
+            else -> "🤔 No Reconoce"
+        }
+    }
 
     private fun guardarImagenDeRostro(
         mediaImage: Image,
@@ -284,8 +331,6 @@ object cameraManager {
             e.printStackTrace()
         }
     }
-
-
 }
 
 object BitmapUtils {
